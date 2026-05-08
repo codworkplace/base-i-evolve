@@ -17,9 +17,11 @@ python -m app.main
 Запуск UI (в другом терминале):
 streamlit run app/ui.py
 
-##Технологии
+## Технологии
 Backend: FastAPI
+
 Frontend: Streamlit
+
 LLM: будет подключен
 
 ## Лицензия
