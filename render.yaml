@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: bs-evolve
+    runtime: docker
+    repo: https://github.com/codworkplace/base-i-evolve
+    branch: main
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_BASE_URL
+        value: https://api.vsegpt.ru/v1
+      - key: OPENAI_MODEL
+        value: openai/gpt-4o-mini

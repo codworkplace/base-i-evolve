@@ -5,8 +5,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import json
 from pathlib import Path
+from app.real.llm_evaluator import LLMEvaluator
+from app.real.case_selector import CaseSelector
 
 app = FastAPI(title="BS-Evolve API")
+
+# Инициализация сервисов
+llm_evaluator = LLMEvaluator()
+case_selector = CaseSelector()
+
+# Хранилище для кейсов пользователей (временно in-memory)
+user_sessions = {}
 
 # Разрешаем запросы из Streamlit
 app.add_middleware(
@@ -91,6 +100,105 @@ async def get_role(role_id: str):
         content=result,
         headers={"Content-Type": "application/json; charset=utf-8"}
     )
+
+# Добавление новых эндпоинтов:
+@app.get("/cases/{competency_id}")
+async def get_cases_by_competency(competency_id: str):
+    """Получить кейсы по компетенции"""
+    with open("data/cases.json", 'r', encoding='utf-8') as f:
+        cases = json.load(f)
+    
+    if competency_id in cases:
+        return cases[competency_id]
+    return []
+
+@app.post("/cases/select")
+async def select_case_for_user(request: dict):
+    """Выбрать кейс для пользователя"""
+    user_id = request.get("user_id", "test_user")
+    competency_id = request.get("competency_id")
+    user_level = request.get("user_level", 0.5)
+    
+    if not competency_id:
+        return {"error": "competency_id required"}
+    
+    case = await case_selector.select_case(competency_id, user_level)
+    
+    if not case:
+        return {"error": "No case available"}
+    
+    # Сохраняем сессию
+    session_key = f"{user_id}_{competency_id}"
+    user_sessions[session_key] = {
+        "case_id": case.get("id"),
+        "scenario": case.get("scenario"),
+        "checklist": case.get("checklist", []),
+        "competency_id": competency_id
+    }
+    
+    return {
+        "case_id": case.get("id"),
+        "scenario": case.get("scenario"),
+        "checklist": case.get("checklist", []),
+        "title": case.get("title", "")
+    }
+
+@app.post("/cases/evaluate")
+async def evaluate_case(request: dict):
+    """Оценить ответ пользователя"""
+    user_id = request.get("user_id", "test_user")
+    competency_id = request.get("competency_id")
+    answer = request.get("answer", "")
+    
+    session_key = f"{user_id}_{competency_id}"
+    
+    if session_key not in user_sessions:
+        return {"error": "No active case session"}
+    
+    session = user_sessions[session_key]
+    
+    # Оцениваем через LLM
+    evaluation = await llm_evaluator.evaluate_case(
+        scenario=session["scenario"],
+        user_answer=answer,
+        checklist=session["checklist"]
+    )
+    
+    # Добавляем информацию о кейсе
+    evaluation["case_id"] = session["case_id"]
+    evaluation["competency_id"] = competency_id
+    evaluation["passed"] = evaluation.get("total_score", 0) >= 70
+    
+    # Очищаем сессию
+    del user_sessions[session_key]
+    
+    return evaluation
+
+@app.get("/health/llm")
+async def check_llm_health():
+    """Проверка подключения к LLM"""
+    try:
+        from app.real.llm_evaluator import LLMEvaluator
+        evaluator = LLMEvaluator()
+        
+        # Простой тестовый запрос
+        test_result = await evaluator.evaluate_case(
+            scenario="Тестовый кейс",
+            user_answer="Тестовый ответ",
+            checklist=["Тестовый пункт"]
+        )
+        
+        return {
+            "status": "healthy",
+            "model": evaluator.model,
+            "base_url": evaluator.client.base_url,
+            "test_score": test_result.get("total_score", 0)
+        }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "error": str(e)
+        }
 
 if __name__ == "__main__":
     import uvicorn

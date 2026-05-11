@@ -1,0 +1,33 @@
+# Виртуальное окружение
+venv/
+__pycache__/
+*.pyc
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# Логи и временные файлы
+*.log
+*.tmp
+
+# Секреты (НЕ добавляйте в образ!)
+.env
+.secrets/
+
+# Тесты и документация
+tests/
+docs/
+*.md
+
+# Docker файлы (чтобы не зацикливать)
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# Файлы для тестирования на стадии разработки
+test_*.py
