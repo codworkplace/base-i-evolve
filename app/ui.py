@@ -2,6 +2,13 @@
 
 import streamlit as st
 import requests
+import os
+
+# Для локальной разработки - localhost, для продакшена - из переменной
+if os.getenv("RENDER"):
+    API_URL = os.getenv("API_URL", "https://bs-evolve-api.onrender.com")
+else:
+    API_URL = "http://localhost:8000"
 
 # Настройка страницы
 st.set_page_config(page_title="BS-Evolve", page_icon="🎯", layout="wide")
