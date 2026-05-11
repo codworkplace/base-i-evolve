@@ -1,21 +1,25 @@
 # app/ui.py
-
+import sys
+import io
+import os
 import streamlit as st
 import requests
-import os
 
-# Для локальной разработки - localhost, для продакшена - из переменной
+# Настройка кодировки для Windows
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+
+# Определяем API URL в зависимости от окружения
 if os.getenv("RENDER"):
     API_URL = os.getenv("API_URL", "https://bs-evolve-api.onrender.com")
 else:
     API_URL = "http://localhost:8000"
 
-# Настройка страницы
+# Для отладки (в логах Render будет видно)
+print(f"[BS-Evolve] Using API_URL: {API_URL}")
+
 st.set_page_config(page_title="BS-Evolve", page_icon="🎯", layout="wide")
-
 st.title("🎯 BS-Evolve — Оценка и развитие компетенций")
-
-API_URL = "http://localhost:8000"
 
 # Инициализация сессии
 if "step" not in st.session_state:
@@ -36,7 +40,7 @@ if st.session_state.step == 1:
     st.header("Шаг 1: Выберите роль")
     
     try:
-        response = requests.get(f"{API_URL}/roles")
+        response = requests.get(f"{API_URL}/roles", timeout=10)
         if response.status_code == 200:
             roles = response.json()
             role_names = [r.get("name", r["id"]) for r in roles]
@@ -57,7 +61,8 @@ if st.session_state.step == 1:
             st.error(f"Ошибка: {response.status_code}")
     except Exception as e:
         st.error(f"Ошибка подключения к API: {e}")
-        st.info("Убедитесь, что сервер запущен: python -m app.main")
+        st.info(f"API URL: {API_URL}")
+
 
 # ==================== ШАГ 2: ДИАГНОСТИКА ====================
 elif st.session_state.step == 2:
@@ -87,14 +92,15 @@ elif st.session_state.step == 2:
         ]
         
         if not st.session_state.competencies_to_learn:
-            st.session_state.step = 4  # Переход к финальному отчету
+            st.session_state.step = 4
         else:
-            st.session_state.step = 3  # Переход к кейсам
+            st.session_state.step = 3
             st.session_state.completed_competencies = []
             st.session_state.current_competency_index = 0
             st.session_state.current_case = None
         
         st.rerun()
+
 
 # ==================== ШАГ 3: КЕЙСЫ ====================
 elif st.session_state.step == 3:
@@ -130,8 +136,10 @@ elif st.session_state.step == 3:
             st.session_state.show_evaluation = False
             st.session_state.evaluation_result = None
             st.rerun()
+        
+        # Если кнопка не нажата — остаемся в этом состоянии
     else:
-        # Нормальный поток - показываем текущий кейс
+        # Нормальный поток — показываем текущий кейс
         total = len(st.session_state.competencies_to_learn)
         completed = len(st.session_state.completed_competencies)
         
@@ -174,7 +182,8 @@ elif st.session_state.step == 3:
                                 "user_id": st.session_state.get("user_id", "test_user"),
                                 "competency_id": comp_code,
                                 "user_level": st.session_state.diagnostic_scores.get(comp_code, 50) / 100
-                            }
+                            },
+                            timeout=30
                         )
                         if response.status_code == 200:
                             st.session_state.current_case = response.json()
@@ -209,7 +218,8 @@ elif st.session_state.step == 3:
                                             "user_id": st.session_state.get("user_id", "test_user"),
                                             "competency_id": comp_code,
                                             "answer": answer
-                                        }
+                                        },
+                                        timeout=60
                                     )
                                     
                                     if eval_response.status_code == 200:
@@ -233,6 +243,7 @@ elif st.session_state.step == 3:
                     st.session_state.current_competency_index += 1
                     st.session_state.current_case = None
                     st.rerun()
+
 
 # ==================== ШАГ 4: ФИНАЛЬНЫЙ ОТЧЕТ ====================
 elif st.session_state.step == 4:
@@ -286,6 +297,7 @@ elif st.session_state.step == 4:
         for key in list(st.session_state.keys()):
             del st.session_state[key]
         st.rerun()
+
 
 # ==================== БОКОВАЯ ПАНЕЛЬ ====================
 with st.sidebar:
