@@ -11,14 +11,14 @@ sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 # Определяем API URL в зависимости от окружения
 if os.getenv("RENDER"):
-    API_URL = os.getenv("API_URL", "https://bs-evolve-api.onrender.com")
+    API_URL = os.getenv("API_URL", "https://base-i-evolve-api.onrender.com")
 else:
     API_URL = "http://localhost:8000"
 
 # Для отладки (в логах Render будет видно)
 print(f"[BS-Evolve] Using API_URL: {API_URL}")
 
-st.set_page_config(page_title="BS-Evolve", page_icon="🎯", layout="wide")
+st.set_page_config(page_title="BASE-I-Evolve", page_icon="🎯", layout="wide")
 st.title("🎯 BS-Evolve — Оценка и развитие компетенций")
 
 # Инициализация сессии
