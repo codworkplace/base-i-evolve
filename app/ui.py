@@ -1,13 +1,7 @@
 # app/ui.py
-import sys
-import io
 import os
 import streamlit as st
 import requests
-
-# Настройка кодировки для Windows
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 # Определяем API URL в зависимости от окружения
 if os.getenv("RENDER"):
@@ -15,10 +9,7 @@ if os.getenv("RENDER"):
 else:
     API_URL = "http://localhost:8000"
 
-# Для отладки (в логах Render будет видно)
-print(f"[BS-Evolve] Using API_URL: {API_URL}")
-
-st.set_page_config(page_title="BASE-I-Evolve", page_icon="🎯", layout="wide")
+st.set_page_config(page_title="BS-Evolve", page_icon="🎯", layout="wide")
 st.title("🎯 BS-Evolve — Оценка и развитие компетенций")
 
 # Инициализация сессии
@@ -52,7 +43,6 @@ if st.session_state.step == 1:
                 st.session_state.role = selected_role["id"]
                 st.session_state.role_name = selected_name
                 
-                # Загружаем компетенции
                 role_data = requests.get(f"{API_URL}/roles/{st.session_state.role}").json()
                 st.session_state.competencies = role_data.get("competencies", [])
                 st.session_state.step = 2
@@ -62,7 +52,6 @@ if st.session_state.step == 1:
     except Exception as e:
         st.error(f"Ошибка подключения к API: {e}")
         st.info(f"API URL: {API_URL}")
-
 
 # ==================== ШАГ 2: ДИАГНОСТИКА ====================
 elif st.session_state.step == 2:
@@ -85,7 +74,6 @@ elif st.session_state.step == 2:
     if st.button("Завершить диагностику и начать обучение"):
         st.session_state.diagnostic_scores = scores
         
-        # Собираем список компетенций для обучения (балл < 70)
         st.session_state.competencies_to_learn = [
             comp for comp in st.session_state.competencies
             if scores.get(comp['code'], 50) < 70
@@ -101,12 +89,10 @@ elif st.session_state.step == 2:
         
         st.rerun()
 
-
 # ==================== ШАГ 3: КЕЙСЫ ====================
 elif st.session_state.step == 3:
     st.header(f"Шаг 3: Практические кейсы")
     
-    # Показываем результат оценки если есть
     if st.session_state.get('show_evaluation', False) and st.session_state.get('evaluation_result'):
         eval_result = st.session_state.evaluation_result
         st.subheader("📊 Результат оценки")
@@ -136,10 +122,7 @@ elif st.session_state.step == 3:
             st.session_state.show_evaluation = False
             st.session_state.evaluation_result = None
             st.rerun()
-        
-        # Если кнопка не нажата — остаемся в этом состоянии
     else:
-        # Нормальный поток — показываем текущий кейс
         total = len(st.session_state.competencies_to_learn)
         completed = len(st.session_state.completed_competencies)
         
@@ -148,21 +131,16 @@ elif st.session_state.step == 3:
             st.progress(progress)
             st.write(f"**Прогресс:** {completed} из {total} компетенций освоено")
         
-        # Если все компетенции пройдены
         if total > 0 and completed >= total:
             st.success("🎉 Поздравляем! Вы успешно освоили все компетенции!")
             if st.button("Показать финальный отчет"):
                 st.session_state.step = 4
                 st.rerun()
-        
-        # Если нет компетенций для обучения
         elif total == 0:
             st.info("Все компетенции уже на высоком уровне!")
             if st.button("Перейти к отчету"):
                 st.session_state.step = 4
                 st.rerun()
-        
-        # Показываем текущую компетенцию
         elif st.session_state.current_competency_index < len(st.session_state.competencies_to_learn):
             current_comp = st.session_state.competencies_to_learn[st.session_state.current_competency_index]
             comp_code = current_comp['code']
@@ -172,7 +150,6 @@ elif st.session_state.step == 3:
             st.write(f"**Ваш текущий уровень:** {st.session_state.diagnostic_scores.get(comp_code, 50)}%")
             st.write(f"**Целевой уровень:** 70% и выше")
             
-            # Загружаем кейс
             if st.session_state.current_case is None:
                 with st.spinner("Загружаем кейс..."):
                     try:
@@ -192,7 +169,6 @@ elif st.session_state.step == 3:
                     except Exception as e:
                         st.error(f"Ошибка: {e}")
             
-            # Показываем кейс
             case = st.session_state.current_case
             if case and "error" not in case:
                 st.info(f"**{case.get('title', 'Практический кейс')}**")
@@ -244,14 +220,11 @@ elif st.session_state.step == 3:
                     st.session_state.current_case = None
                     st.rerun()
 
-
 # ==================== ШАГ 4: ФИНАЛЬНЫЙ ОТЧЕТ ====================
 elif st.session_state.step == 4:
     st.header("🎉 Результаты обучения")
-    
     st.success("Вы успешно завершили программу развития!")
     
-    # Расчет итогового PI
     if st.session_state.diagnostic_scores:
         avg_score = sum(st.session_state.diagnostic_scores.values()) / len(st.session_state.diagnostic_scores)
         
@@ -268,7 +241,6 @@ elif st.session_state.step == 4:
             else:
                 st.metric("Статус", "⚠️ На доработку")
     
-    # Таблица результатов
     st.subheader("Детализация по компетенциям")
     
     data = []
@@ -297,7 +269,6 @@ elif st.session_state.step == 4:
         for key in list(st.session_state.keys()):
             del st.session_state[key]
         st.rerun()
-
 
 # ==================== БОКОВАЯ ПАНЕЛЬ ====================
 with st.sidebar:
