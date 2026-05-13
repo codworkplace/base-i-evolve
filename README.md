@@ -27,16 +27,13 @@
 
 ### 1. Клонируйте репозиторий
 
-git clone https://github.com/codworkplace/base-i-evolve.git
-
+git clone https://github.com/codworkplace/base-i-evolve.git  
 cd base-i-evolve
 
 ### 2. Создайте виртуальное окружение
 
-python -m venv venv
-
-source venv/bin/activate  # Linux/Mac
-
+python -m venv venv  
+source venv/bin/activate  # Linux/Mac  
 venv\Scripts\activate     # Windows
 
 ### 3. Установите зависимости
@@ -47,10 +44,8 @@ pip install -r requirements.txt
 
 **Создайте файл .env:**
 
-OPENAI_API_KEY=ваш_ключ_vsegpt
-
-OPENAI_BASE_URL=https://api.vsegpt.ru/v1
-
+OPENAI_API_KEY=ваш_ключ_vsegpt  
+OPENAI_BASE_URL=https://api.vsegpt.ru/v1  
 OPENAI_MODEL=openai/gpt-4o-mini
 
 ### 5. Запустите API
@@ -68,23 +63,15 @@ streamlit run app/ui.py
 
 ### 📁 Структура проекта
 
-base-i-evolve/
-
-├── app/
-
-│   ├── main.py           # FastAPI бэкенд
-
-│   ├── ui.py             # Streamlit интерфейс
-
-│   ├── real/             # Реальные реализации (LLM, выбор кейсов)
-
-│   └── stub/             # Заглушки для быстрого прототипирования
-
-├── data/                 # JSON-файлы с ролями, компетенциями, кейсами
-
-├── requirements.txt      # Зависимости Python
-
-└── Dockerfile            # Контейнеризация для деплоя
+base-i-evolve/  
+├── app/  
+│   ├── main.py           # FastAPI бэкенд  
+│   ├── ui.py             # Streamlit интерфейс  
+│   ├── real/             # Реальные реализации (LLM, выбор кейсов)  
+│   └── stub/             # Заглушки для быстрого прототипирования  
+├── data/                 # JSON-файлы с ролями, компетенциями, кейсами  
+├── requirements.txt      # Зависимости Python  
+└── Dockerfile            # Контейнеризация для деплоя  
 
 
 ### 🧠 Модель оценки
