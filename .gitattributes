@@ -1,0 +1,33 @@
+# Создаем .gitattributes
+$gitattributes = @"
+# Автоматическая конвертация CRLF -> LF при коммите
+* text=auto
+
+# Python файлы всегда с LF
+*.py text eol=lf
+*.txt text eol=lf
+*.in text eol=lf
+*.rst text eol=lf
+
+# Конфигурационные файлы
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.toml text eol=lf
+
+# Документация
+*.md text eol=lf
+*.rst text eol=lf
+
+# Скрипты (должны быть с LF для Linux)
+*.sh text eol=lf
+Dockerfile text eol=lf
+
+# Бинарные файлы
+*.pyc binary
+*.png binary
+*.jpg binary
+"@
+
+[System.IO.File]::WriteAllText(".gitattributes", $gitattributes, $utf8NoBom)
+Write-Host "✓ .gitattributes создан"
