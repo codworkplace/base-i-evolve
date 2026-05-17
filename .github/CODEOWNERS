@@ -1,0 +1,5 @@
+# Все изменения в app/ требуют твоего ревью
+/app/ @codworkplace
+
+# Изменения в тестах
+/tests/ @codworkplace
