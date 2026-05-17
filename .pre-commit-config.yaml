@@ -1,0 +1,20 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.13  # или v0.11.2 (актуальная)
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format  # если нужен форматтер
+
+  - repo: https://github.com/psf/black
+    rev: 26.5.0  # или 24.10.0, или 26.5.0
+    hooks:
+      - id: black
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0  # последняя стабильная
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
