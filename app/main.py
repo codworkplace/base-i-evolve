@@ -7,7 +7,12 @@ import json
 from pathlib import Path
 from app.real.case_selector import CaseSelector
 
-app = FastAPI(title="BS-Evolve API")
+app = FastAPI(
+    title="BS-Evolve API",
+    docs_url="/docs",  # 👈 Явно указываем путь для Swagger UI
+    redoc_url="/redoc",  # 👈 Явно указываем путь для ReDoc
+    openapi_url="/openapi.json",  # 👈 Явно указываем путь для OpenAPI схемы
+)
 
 # Ленивая инициализация LLM evaluator
 llm_evaluator = None
