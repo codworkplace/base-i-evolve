@@ -1,5 +1,3 @@
-# Создаем .gitattributes
-$gitattributes = @"
 # Автоматическая конвертация CRLF -> LF при коммите
 * text=auto
 
@@ -27,7 +25,3 @@ Dockerfile text eol=lf
 *.pyc binary
 *.png binary
 *.jpg binary
-"@
-
-[System.IO.File]::WriteAllText(".gitattributes", $gitattributes, $utf8NoBom)
-Write-Host "✓ .gitattributes создан"
