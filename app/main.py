@@ -2,6 +2,7 @@
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
 from fastapi.responses import JSONResponse
 import json
 from pathlib import Path
@@ -9,8 +10,8 @@ from app.real.case_selector import CaseSelector
 
 app = FastAPI(
     title="BS-Evolve API",
-    docs_url="/docs",  # 👈 Явно указываем путь для Swagger UI
-    redoc_url="/redoc",  # 👈 Явно указываем путь для ReDoc
+    docs_url=None,  # 👈 ОТКЛЮЧАЕМ стандартную
+    redoc_url=None,  # 👈 ОТКЛЮЧАЕМ стандартную
     openapi_url="/openapi.json",  # 👈 Явно указываем путь для OpenAPI схемы
 )
 
@@ -40,17 +41,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-# ПРИНУДИТЕЛЬНО устанавливаем UTF-8 для всех ответов
-# Откройте app/main.py и удалите или закомментируйте весь блок:
-
-# @app.middleware("http")
-# async def set_charset_header(request, call_next):
-#     response = await call_next(request)
-#     response.headers["Content-Type"] = "application/json; charset=utf-8"
-#     return response
-
 
 DATA_DIR = Path("data")
 ROLES_FILE = DATA_DIR / "roles.json"
@@ -227,6 +217,19 @@ async def check_llm_health():
         }
     except Exception as e:
         return {"status": "unhealthy", "error": str(e)}
+
+
+# 👇 ВСТАВИТЬ ПОСЛЕ СОЗДАНИЯ app
+@app.get("/docs", include_in_schema=False)
+async def custom_swagger_ui():
+    return get_swagger_ui_html(
+        openapi_url="/openapi.json", title="BS-Evolve API - Swagger UI"
+    )
+
+
+@app.get("/redoc", include_in_schema=False)
+async def custom_redoc():
+    return get_redoc_html(openapi_url="/openapi.json", title="BS-Evolve API - ReDoc")
 
 
 if __name__ == "__main__":
