@@ -43,12 +43,13 @@ app.add_middleware(
 
 
 # ПРИНУДИТЕЛЬНО устанавливаем UTF-8 для всех ответов
-@app.middleware("http")
-async def set_charset_header(request, call_next):
-    response = await call_next(request)
-    if not request.url.path.startswith(("/docs", "/redoc", "/openapi.json")):
-        response.headers["Content-Type"] = "application/json; charset=utf-8"
-    return response
+# Откройте app/main.py и удалите или закомментируйте весь блок:
+
+# @app.middleware("http")
+# async def set_charset_header(request, call_next):
+#     response = await call_next(request)
+#     response.headers["Content-Type"] = "application/json; charset=utf-8"
+#     return response
 
 
 DATA_DIR = Path("data")
