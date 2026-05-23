@@ -1,12 +1,14 @@
 # app/main.py
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends  # Добавить Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
 from fastapi.responses import JSONResponse
+from sqlalchemy.ext.asyncio import AsyncSession  # Добавить
 import json
 from pathlib import Path
 from app.real.case_selector import CaseSelector
+from app.db.base import get_db  # Добавить
 
 app = FastAPI(
     title="BS-Evolve API",
@@ -230,6 +232,18 @@ async def custom_swagger_ui():
 @app.get("/redoc", include_in_schema=False)
 async def custom_redoc():
     return get_redoc_html(openapi_url="/openapi.json", title="BS-Evolve API - ReDoc")
+
+
+@app.get("/db/health")
+async def db_health_check(db: AsyncSession = Depends(get_db)):
+    """Проверка подключения к PostgreSQL (новый функционал)"""
+    try:
+        from sqlalchemy import text
+
+        result = await db.execute(text("SELECT 1"))
+        return {"status": "healthy", "db": "postgresql", "test": result.scalar() == 1}
+    except Exception as e:
+        return {"status": "unhealthy", "error": str(e)}
 
 
 if __name__ == "__main__":
