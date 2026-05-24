@@ -34,7 +34,6 @@ class UserService:
         # Обновляем user_skills
         await self._update_skill(user_id, competency_code, score / 100)
 
-    # 👇 НОВЫЙ МЕТОД
     async def save_case_result(
         self,
         user_id: str,

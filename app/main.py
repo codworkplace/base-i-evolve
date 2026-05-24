@@ -1,15 +1,13 @@
-# app/main.py
-
-from app.services.user_service import UserService  # Добавьте импорт в начало файла
-from fastapi import FastAPI, Depends  # Добавить Depends
+from app.services.user_service import UserService
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
 from fastapi.responses import JSONResponse
-from sqlalchemy.ext.asyncio import AsyncSession  # Добавить
+from sqlalchemy.ext.asyncio import AsyncSession
 import json
 from pathlib import Path
 from app.real.case_selector import CaseSelector
-from app.db.base import get_db  # Добавить
+from app.db.base import get_db
 
 # В самом начале файла, после импортов
 from app.core.logging import setup_logging
@@ -21,9 +19,9 @@ setup_logging(environment)
 
 app = FastAPI(
     title="BS-Evolve API",
-    docs_url=None,  # 👈 ОТКЛЮЧАЕМ стандартную
-    redoc_url=None,  # 👈 ОТКЛЮЧАЕМ стандартную
-    openapi_url="/openapi.json",  # 👈 Явно указываем путь для OpenAPI схемы
+    docs_url=None,
+    redoc_url=None,
+    openapi_url="/openapi.json",
 )
 
 # Ленивая инициализация LLM evaluator
@@ -84,7 +82,6 @@ async def root():
 async def list_roles():
     roles = load_roles()
     result = [{"id": k, "name": v.get("name", k)} for k, v in roles.items()]
-    # Возвращаем с явным указанием кодировки
     return JSONResponse(
         content=result, headers={"Content-Type": "application/json; charset=utf-8"}
     )
@@ -128,7 +125,6 @@ async def get_role(role_id: str):
     )
 
 
-# Добавление новых эндпоинтов:
 @app.get("/cases/{competency_id}")
 async def get_cases_by_competency(competency_id: str):
     """Получить кейсы по компетенции"""
@@ -146,7 +142,7 @@ async def select_case_for_user(request: dict):
     user_id = request.get("user_id", "test_user")
     competency_id = request.get("competency_id")
     user_level = request.get("user_level", 0.5)
-    role_id = request.get("role_id", "sales_manager")  # 👈 ДОБАВИТЬ
+    role_id = request.get("role_id", "sales_manager")
 
     if not competency_id:
         return {"error": "competency_id required"}
@@ -156,14 +152,13 @@ async def select_case_for_user(request: dict):
     if not case:
         return {"error": "No case available"}
 
-    # Сохраняем сессию
     session_key = f"{user_id}_{competency_id}"
     user_sessions[session_key] = {
         "case_id": case.get("id"),
         "scenario": case.get("scenario"),
         "checklist": case.get("checklist", []),
         "competency_id": competency_id,
-        "role_id": role_id,  # 👈 ДОБАВИТЬ
+        "role_id": role_id,
     }
 
     return {
@@ -175,14 +170,12 @@ async def select_case_for_user(request: dict):
 
 
 @app.post("/cases/evaluate")
-async def evaluate_case(
-    request: dict, db: AsyncSession = Depends(get_db)
-):  # ✅ добавить
+async def evaluate_case(request: dict, db: AsyncSession = Depends(get_db)):
     """Оценить ответ пользователя"""
     user_id = request.get("user_id", "test_user")
     competency_id = request.get("competency_id")
     answer = request.get("answer", "")
-    role_id = request.get("role_id", "sales_manager")  # 👈 ДОБАВИТЬ
+    role_id = request.get("role_id", "sales_manager")
 
     session_key = f"{user_id}_{competency_id}"
 
@@ -191,17 +184,14 @@ async def evaluate_case(
 
     session = user_sessions[session_key]
 
-    # Оцениваем через LLM
     evaluation = await get_llm_evaluator().evaluate_case(
         scenario=session["scenario"], user_answer=answer, checklist=session["checklist"]
     )
 
-    # Добавляем информацию о кейсе
     evaluation["case_id"] = session["case_id"]
     evaluation["competency_id"] = competency_id
     evaluation["passed"] = evaluation.get("total_score", 0) >= 70
 
-    # 👇 НОВЫЙ КОД: Сохраняем в БД
     user_service = UserService(db)
     await user_service.get_or_create_user(user_id, role_id)
     await user_service.save_case_result(
@@ -213,9 +203,7 @@ async def evaluate_case(
         evaluation_details=evaluation.get("details", {}),
         passed=evaluation["passed"],
     )
-    # 👆 КОНЕЦ НОВОГО КОДА
 
-    # Очищаем сессию
     del user_sessions[session_key]
 
     return evaluation
@@ -225,14 +213,11 @@ async def evaluate_case(
 async def check_llm_health():
     """Проверка подключения к LLM"""
     try:
-        # Используем ленивую инициализацию вместо прямого создания
         evaluator = get_llm_evaluator()
 
-        # Проверяем, есть ли API ключ
         if not hasattr(evaluator, "client") or evaluator.client is None:
             return {"status": "unhealthy", "error": "LLM not initialized (no API key?)"}
 
-        # Простой тестовый запрос (только если есть клиент)
         test_result = await evaluator.evaluate_case(
             scenario="Тестовый кейс",
             user_answer="Тестовый ответ",
@@ -249,7 +234,6 @@ async def check_llm_health():
         return {"status": "unhealthy", "error": str(e)}
 
 
-# 👇 ВСТАВИТЬ ПОСЛЕ СОЗДАНИЯ app
 @app.get("/docs", include_in_schema=False)
 async def custom_swagger_ui():
     return get_swagger_ui_html(
