@@ -264,6 +264,46 @@ async def db_health_check(db: AsyncSession = Depends(get_db)):
         return {"status": "unhealthy", "error": str(e)}
 
 
+@app.get("/admin/migrate")
+async def run_migrations():
+    """
+    ВРЕМЕННЫЙ ЭНДПОИНТ: Выполняет миграции Alembic.
+    Использовать только один раз для создания таблиц.
+    После успешного выполнения - УДАЛИТЬ этот эндпоинт!
+    """
+    import subprocess
+    import sys
+    import os
+    from fastapi.responses import JSONResponse
+
+    try:
+        # Запускаем миграцию
+        result = subprocess.run(
+            [sys.executable, "-m", "alembic", "upgrade", "head"],
+            capture_output=True,
+            text=True,
+            env=os.environ,
+            cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        )
+
+        if result.returncode != 0:
+            return JSONResponse(
+                status_code=500, content={"status": "error", "message": result.stderr}
+            )
+
+        return JSONResponse(
+            content={
+                "status": "success",
+                "message": "Migrations completed successfully",
+                "output": result.stdout,
+            }
+        )
+    except Exception as e:
+        return JSONResponse(
+            status_code=500, content={"status": "error", "message": str(e)}
+        )
+
+
 if __name__ == "__main__":
     import uvicorn
 
