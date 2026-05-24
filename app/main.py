@@ -192,17 +192,23 @@ async def evaluate_case(request: dict, db: AsyncSession = Depends(get_db)):
     evaluation["competency_id"] = competency_id
     evaluation["passed"] = evaluation.get("total_score", 0) >= 70
 
-    user_service = UserService(db)
-    await user_service.get_or_create_user(user_id, role_id)
-    await user_service.save_case_result(
-        user_id=user_id,
-        case_id=session["case_id"],
-        competency_code=competency_id,
-        user_answer=answer,
-        evaluation_score=evaluation["total_score"],
-        evaluation_details=evaluation.get("details", {}),
-        passed=evaluation["passed"],
-    )
+    # Сохраняем в БД только не на Windows
+    import sys
+
+    if sys.platform != "win32":
+        user_service = UserService(db)
+        await user_service.get_or_create_user(user_id, role_id)
+        await user_service.save_case_result(
+            user_id=user_id,
+            case_id=session["case_id"],
+            competency_code=competency_id,
+            user_answer=answer,
+            evaluation_score=evaluation["total_score"],
+            evaluation_details=evaluation.get("details", {}),
+            passed=evaluation["passed"],
+        )
+    else:
+        print(f"⚠️ Windows: пропускаем сохранение в БД для user_id={user_id}")
 
     del user_sessions[session_key]
 
