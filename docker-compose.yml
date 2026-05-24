@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: bs-evolve-postgres
+    environment:
+      POSTGRES_USER: bsuser
+      POSTGRES_PASSWORD: bspassword
+      POSTGRES_DB: bsevolve
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bsuser -d bsevolve"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: bs-evolve-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: workkm30@gmail.com
+      PGADMIN_DEFAULT_PASSWORD: nimdadmin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data:
