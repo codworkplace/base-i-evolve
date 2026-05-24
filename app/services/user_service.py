@@ -1,6 +1,9 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from app.db.models import User, UserSkill, DiagnosticResult
+from app.db.models import User, UserSkill, DiagnosticResult, CaseResult
+import structlog
+
+logger = structlog.get_logger()
 
 
 class UserService:
@@ -30,6 +33,41 @@ class UserService:
 
         # Обновляем user_skills
         await self._update_skill(user_id, competency_code, score / 100)
+
+    async def save_case_result(
+        self,
+        user_id: str,
+        case_id: str,
+        competency_code: str,
+        user_answer: str,
+        evaluation_score: float,
+        evaluation_details: dict,
+        passed: bool,
+    ):
+        """Сохранить результат оценки кейса"""
+        case_result = CaseResult(
+            user_id=user_id,
+            case_id=case_id,
+            competency_code=competency_code,
+            user_answer=user_answer,
+            evaluation_score=evaluation_score,
+            evaluation_details=evaluation_details,
+            passed=1 if passed else 0,
+        )
+        self.db.add(case_result)
+        await self.db.commit()
+
+        logger.info(
+            "case_result_saved",
+            user_id=user_id,
+            case_id=case_id,
+            competency_code=competency_code,
+            score=evaluation_score,
+            passed=passed,
+        )
+
+        # Обновить навык пользователя
+        await self._update_skill(user_id, competency_code, evaluation_score / 100)
 
     async def _update_skill(self, user_id: str, competency_code: str, new_score: float):
         result = await self.db.execute(
