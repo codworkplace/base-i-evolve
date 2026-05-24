@@ -5,9 +5,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.main import app
-from app.db.base import Base, get_db  # 👈 добавить get_db
+from app.db.base import Base, get_db
 
-# Определяем, где мы находимся
 ON_RENDER = os.getenv("RENDER") == "true"
 
 if ON_RENDER:
@@ -17,7 +16,6 @@ else:
     TEST_DATABASE_URL = "sqlite:///:memory:"
     print("💻 Running locally with SQLite")
 
-# Синхронный движок для тестов
 sync_engine = create_engine(
     TEST_DATABASE_URL,
     connect_args={"check_same_thread": False} if not ON_RENDER else {},
@@ -25,36 +23,35 @@ sync_engine = create_engine(
 TestingSessionLocal = sessionmaker(sync_engine, expire_on_commit=False)
 
 
-# 👇 НОВЫЙ КОД: Переопределяем зависимость get_db для тестов
-async def override_get_db():
-    """Использует синхронную сессию в асинхронной обёртке для тестов"""
-
-    def _get_sync_session():
-        return TestingSessionLocal()
-
-    # Оборачиваем синхронную сессию в асинхронную
-    session = TestingSessionLocal()
+def override_get_db():
+    db = TestingSessionLocal()
     try:
-        yield session
-        session.commit()
+        yield db
     finally:
-        session.close()
+        db.close()
 
 
 app.dependency_overrides[get_db] = override_get_db
-# 👆 КОНЕЦ НОВОГО КОДА
+
+
+@pytest.fixture(autouse=True)
+def setup_database():
+    """Создаёт таблицы ПЕРЕД каждым тестом"""
+    # Импортируем модели, чтобы Base их увидел
+
+    Base.metadata.create_all(bind=sync_engine)
+    yield
+    Base.metadata.drop_all(bind=sync_engine)
 
 
 @pytest.fixture
 def db_session():
-    Base.metadata.create_all(bind=sync_engine)
     session = TestingSessionLocal()
     try:
         yield session
         session.commit()
     finally:
         session.close()
-        Base.metadata.drop_all(bind=sync_engine)
 
 
 @pytest.fixture
