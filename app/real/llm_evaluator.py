@@ -2,11 +2,9 @@ import os
 import json
 from openai import OpenAI
 from dotenv import load_dotenv
-import structlog
+from app.core.logging import logger
 
 load_dotenv()
-
-logger = structlog.get_logger()
 
 
 class LLMEvaluator:
