@@ -7,19 +7,26 @@ from sqlalchemy.orm import sessionmaker
 from app.main import app
 from app.db.base import Base, get_db
 
+# Определяем, где мы находимся
 ON_RENDER = os.getenv("RENDER") == "true"
 
 if ON_RENDER:
     TEST_DATABASE_URL = os.getenv("DATABASE_URL")
     print("🚀 Running on Render with PostgreSQL")
 else:
+    # На CI (Linux) и локально (Windows) используем SQLite
     TEST_DATABASE_URL = "sqlite:///:memory:"
-    print("💻 Running locally with SQLite")
+    print("💻 Running locally or CI with SQLite")
 
+# Синхронный движок для тестов
 sync_engine = create_engine(
     TEST_DATABASE_URL,
-    connect_args={"check_same_thread": False} if not ON_RENDER else {},
+    connect_args={"check_same_thread": False} if "sqlite" in TEST_DATABASE_URL else {},
 )
+
+# ЯВНО СОЗДАЁМ ВСЕ ТАБЛИЦЫ
+Base.metadata.create_all(bind=sync_engine)
+
 TestingSessionLocal = sessionmaker(sync_engine, expire_on_commit=False)
 
 
@@ -32,16 +39,6 @@ def override_get_db():
 
 
 app.dependency_overrides[get_db] = override_get_db
-
-
-@pytest.fixture(autouse=True)
-def setup_database():
-    """Создаёт таблицы ПЕРЕД каждым тестом"""
-    # Импортируем модели, чтобы Base их увидел
-
-    Base.metadata.create_all(bind=sync_engine)
-    yield
-    Base.metadata.drop_all(bind=sync_engine)
 
 
 @pytest.fixture
