@@ -1,5 +1,6 @@
 # app/main.py
 
+from app.services.user_service import UserService  # Добавьте импорт в начало файла
 from fastapi import FastAPI, Depends  # Добавить Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
@@ -9,6 +10,14 @@ import json
 from pathlib import Path
 from app.real.case_selector import CaseSelector
 from app.db.base import get_db  # Добавить
+
+# В самом начале файла, после импортов
+from app.core.logging import setup_logging
+import os
+
+# Настройка логирования в зависимости от окружения
+environment = os.getenv("ENVIRONMENT", "development")
+setup_logging(environment)
 
 app = FastAPI(
     title="BS-Evolve API",
@@ -137,6 +146,7 @@ async def select_case_for_user(request: dict):
     user_id = request.get("user_id", "test_user")
     competency_id = request.get("competency_id")
     user_level = request.get("user_level", 0.5)
+    role_id = request.get("role_id", "sales_manager")  # 👈 ДОБАВИТЬ
 
     if not competency_id:
         return {"error": "competency_id required"}
@@ -153,6 +163,7 @@ async def select_case_for_user(request: dict):
         "scenario": case.get("scenario"),
         "checklist": case.get("checklist", []),
         "competency_id": competency_id,
+        "role_id": role_id,  # 👈 ДОБАВИТЬ
     }
 
     return {
@@ -164,11 +175,14 @@ async def select_case_for_user(request: dict):
 
 
 @app.post("/cases/evaluate")
-async def evaluate_case(request: dict):
+async def evaluate_case(
+    request: dict, db: AsyncSession = Depends(get_db)
+):  # ✅ добавить
     """Оценить ответ пользователя"""
     user_id = request.get("user_id", "test_user")
     competency_id = request.get("competency_id")
     answer = request.get("answer", "")
+    role_id = request.get("role_id", "sales_manager")  # 👈 ДОБАВИТЬ
 
     session_key = f"{user_id}_{competency_id}"
 
@@ -186,6 +200,20 @@ async def evaluate_case(request: dict):
     evaluation["case_id"] = session["case_id"]
     evaluation["competency_id"] = competency_id
     evaluation["passed"] = evaluation.get("total_score", 0) >= 70
+
+    # 👇 НОВЫЙ КОД: Сохраняем в БД
+    user_service = UserService(db)
+    await user_service.get_or_create_user(user_id, role_id)
+    await user_service.save_case_result(
+        user_id=user_id,
+        case_id=session["case_id"],
+        competency_code=competency_id,
+        user_answer=answer,
+        evaluation_score=evaluation["total_score"],
+        evaluation_details=evaluation.get("details", {}),
+        passed=evaluation["passed"],
+    )
+    # 👆 КОНЕЦ НОВОГО КОДА
 
     # Очищаем сессию
     del user_sessions[session_key]
