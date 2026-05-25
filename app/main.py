@@ -310,13 +310,13 @@ async def init_database():
     import asyncpg
     import os
     from fastapi.responses import JSONResponse
-    
+
     try:
         # Получаем URL базы данных
         database_url = os.getenv("DATABASE_URL")
         # Подключаемся напрямую через asyncpg
         conn = await asyncpg.connect(database_url)
-        
+
         # Создаём таблицу users
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS users (
@@ -327,7 +327,7 @@ async def init_database():
                 updated_at TIMESTAMP WITH TIME ZONE
             )
         """)
-        
+
         # Создаём таблицу user_skills
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS user_skills (
@@ -339,7 +339,7 @@ async def init_database():
                 updated_at TIMESTAMP WITH TIME ZONE
             )
         """)
-        
+
         # Создаём таблицу diagnostic_results
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS diagnostic_results (
@@ -350,7 +350,7 @@ async def init_database():
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
             )
         """)
-        
+
         # Создаём таблицу case_results
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS case_results (
@@ -365,16 +365,15 @@ async def init_database():
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
             )
         """)
-        
+
         await conn.close()
-        
+
         return JSONResponse(
             content={"status": "success", "message": "Tables created successfully"}
         )
     except Exception as e:
         return JSONResponse(
-            status_code=500,
-            content={"status": "error", "message": str(e)}
+            status_code=500, content={"status": "error", "message": str(e)}
         )
 
 
