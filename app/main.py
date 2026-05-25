@@ -304,6 +304,80 @@ async def run_migrations():
         )
 
 
+@app.get("/admin/init-db")
+async def init_database():
+    """ВРЕМЕННО: Создаёт таблицы напрямую"""
+    import asyncpg
+    import os
+    from fastapi.responses import JSONResponse
+    
+    try:
+        # Получаем URL базы данных
+        database_url = os.getenv("DATABASE_URL")
+        # Подключаемся напрямую через asyncpg
+        conn = await asyncpg.connect(database_url)
+        
+        # Создаём таблицу users
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                user_id VARCHAR(50) UNIQUE NOT NULL,
+                role_id VARCHAR(50) NOT NULL,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                updated_at TIMESTAMP WITH TIME ZONE
+            )
+        """)
+        
+        # Создаём таблицу user_skills
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS user_skills (
+                id SERIAL PRIMARY KEY,
+                user_id VARCHAR(50) NOT NULL,
+                competency_code VARCHAR(20) NOT NULL,
+                score FLOAT DEFAULT 0.0,
+                confidence FLOAT DEFAULT 0.0,
+                updated_at TIMESTAMP WITH TIME ZONE
+            )
+        """)
+        
+        # Создаём таблицу diagnostic_results
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS diagnostic_results (
+                id SERIAL PRIMARY KEY,
+                user_id VARCHAR(50) NOT NULL,
+                competency_code VARCHAR(20) NOT NULL,
+                score FLOAT NOT NULL,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+            )
+        """)
+        
+        # Создаём таблицу case_results
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS case_results (
+                id SERIAL PRIMARY KEY,
+                user_id VARCHAR(50) NOT NULL,
+                case_id VARCHAR(50) NOT NULL,
+                competency_code VARCHAR(20) NOT NULL,
+                user_answer TEXT NOT NULL,
+                evaluation_score FLOAT NOT NULL,
+                evaluation_details JSONB,
+                passed INTEGER DEFAULT 0,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+            )
+        """)
+        
+        await conn.close()
+        
+        return JSONResponse(
+            content={"status": "success", "message": "Tables created successfully"}
+        )
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "message": str(e)}
+        )
+
+
 if __name__ == "__main__":
     import uvicorn
 
