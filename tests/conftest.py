@@ -3,53 +3,39 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 
 from app.main import app
 from app.db.base import Base, get_db
 
-# Определяем, где мы находимся
-ON_RENDER = os.getenv("RENDER") == "true"
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://bsuser:bspassword@localhost:5432/bsevolve_test")
+ASYNC_DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
 
-if ON_RENDER:
-    TEST_DATABASE_URL = os.getenv("DATABASE_URL")
-    print("🚀 Running on Render with PostgreSQL")
-else:
-    # На CI (Linux) и локально (Windows) используем SQLite
-    TEST_DATABASE_URL = "sqlite:///:memory:"
-    print("💻 Running locally or CI with SQLite")
+# Асинхронный движок для API тестов
+async_engine = create_async_engine(ASYNC_DATABASE_URL, echo=True)
+AsyncTestingSessionLocal = sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
 
-# Синхронный движок для тестов
-sync_engine = create_engine(
-    TEST_DATABASE_URL,
-    connect_args={"check_same_thread": False} if "sqlite" in TEST_DATABASE_URL else {},
-)
-
-# ЯВНО СОЗДАЁМ ВСЕ ТАБЛИЦЫ
-Base.metadata.create_all(bind=sync_engine)
-
-TestingSessionLocal = sessionmaker(sync_engine, expire_on_commit=False)
-
-
-def override_get_db():
-    db = TestingSessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
+async def override_get_db():
+    async with AsyncTestingSessionLocal() as session:
+        yield session
 
 app.dependency_overrides[get_db] = override_get_db
 
+# Синхронный движок для прямых запросов в тестах
+sync_engine = create_engine(DATABASE_URL)
+SyncTestingSessionLocal = sessionmaker(sync_engine, expire_on_commit=False)
+
+# Создаём таблицы
+Base.metadata.create_all(bind=sync_engine)
 
 @pytest.fixture
 def db_session():
-    session = TestingSessionLocal()
+    session = SyncTestingSessionLocal()
     try:
         yield session
         session.commit()
     finally:
         session.close()
-
 
 @pytest.fixture
 def client():
