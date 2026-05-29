@@ -20,15 +20,19 @@
 
 - **Backend:** FastAPI (Python)
 - **Frontend:** Streamlit
+- **База данных:** PostgreSQL (через SQLAlchemy + Alembic)
+- **Логирование:** structlog (JSON-формат в продакшене)
+- **Тестирование:** pytest, pytest-asyncio, интеграционные тесты
 - **LLM:** gpt-4o-mini (через API vsegpt.ru)
 - **Деплой:** Render.com (Docker)
+- **CI/CD:** GitHub Actions (lint, test, build)
 
 ## 🏁 Запуск для разработки
 
 ### 1. Клонируйте репозиторий
 
 git clone https://github.com/codworkplace/base-i-evolve.git  
-cd base-i-evolve
+cd base-i-evolve  
 
 ### 2. Создайте виртуальное окружение
 
@@ -47,12 +51,22 @@ pip install -r requirements.txt
 OPENAI_API_KEY=ваш_ключ_vsegpt  
 OPENAI_BASE_URL=https://api.vsegpt.ru/v1  
 OPENAI_MODEL=openai/gpt-4o-mini  
+DATABASE_URL=postgresql://bsuser:bspassword@localhost:5432/bsevolve  
+ENVIRONMENT=development  
 
-### 5. Запустите API
+### 5. Запустите PostgreSQL (через Docker)
+
+docker-compose up -d
+
+### 6. Примените миграции
+
+alembic upgrade head
+
+### 7. Запустите API
 
 python -m app.main
 
-### 6. Запустите UI (в другом терминале)
+### 8. Запустите UI (в другом терминале)
 
 streamlit run app/ui.py
 
@@ -60,6 +74,22 @@ streamlit run app/ui.py
 
 - UI: http://localhost:8501
 - API: http://localhost:8000
+- Swagger документация API: http://localhost:8000/docs
+- ReDoc документация API: http://localhost:8000/redoc
+
+### 🧪 Тестирование
+
+**Запуск всех тестов**
+
+pytest tests/ -v
+
+**Запуск с покрытием**
+
+pytest tests/ -v --cov=app
+
+**Только интеграционные тесты**
+
+pytest tests/integration/ -v
 
 ### 📁 Структура проекта
 
@@ -67,11 +97,17 @@ base-i-evolve/
 ├── app/  
 │   ├── main.py           # FastAPI бэкенд  
 │   ├── ui.py             # Streamlit интерфейс  
+│   ├── core/             # Логирование и конфигурация  
+│   ├── db/               # Модели, миграции (Alembic)  
+│   ├── services/         # Бизнес-логика (UserService и др.)  
 │   ├── real/             # Реальные реализации (LLM, выбор кейсов)  
 │   └── stub/             # Заглушки для быстрого прототипирования  
 ├── data/                 # JSON-файлы с ролями, компетенциями, кейсами  
+├── tests/                # Unit и интеграционные тесты  
 ├── requirements.txt      # Зависимости Python  
-└── Dockerfile            # Контейнеризация для деплоя  
+├── docker-compose.yml    # PostgreSQL + pgAdmin  
+├── Dockerfile            # Контейнеризация для деплоя  
+└── alembic/              # Миграции базы данных  
 
 
 ### 🧠 Модель оценки
@@ -95,11 +131,17 @@ base-i-evolve/
 
 ### 🔄 CI/CD
 
-**При пуше в ветку main Render автоматически:**
+**При пуше в ветку main GitHub Actions:**
 
-1. Собирает Docker-образ
-2. Деплоит API и UI как отдельные сервисы
-3. Применяет переменные окружения
+1. Запускает линтеры (ruff, black)
+2. Запускает тесты с PostgreSQL
+3. Собирает Docker-образ
+
+**Render автоматически деплоит новую версию:**
+
+1. Получает обновлённый код из ветки main
+2. Устанавливает зависимости
+3. Запускает приложение
 
 ### 📝 Лицензия
 

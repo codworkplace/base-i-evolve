@@ -192,23 +192,19 @@ async def evaluate_case(request: dict, db: AsyncSession = Depends(get_db)):
     evaluation["competency_id"] = competency_id
     evaluation["passed"] = evaluation.get("total_score", 0) >= 70
 
-    # Сохраняем в БД только не на Windows
-    import sys
-
-    if sys.platform != "win32":
-        user_service = UserService(db)
-        await user_service.get_or_create_user(user_id, role_id)
-        await user_service.save_case_result(
-            user_id=user_id,
-            case_id=session["case_id"],
-            competency_code=competency_id,
-            user_answer=answer,
-            evaluation_score=evaluation["total_score"],
-            evaluation_details=evaluation.get("details", {}),
-            passed=evaluation["passed"],
-        )
-    else:
-        print(f"⚠️ Windows: пропускаем сохранение в БД для user_id={user_id}")
+    # Сохраняем в БД
+    
+    user_service = UserService(db)
+    await user_service.get_or_create_user(user_id, role_id)
+    await user_service.save_case_result(
+        user_id=user_id,
+        case_id=session["case_id"],
+        competency_code=competency_id,
+        user_answer=answer,
+        evaluation_score=evaluation["total_score"],
+        evaluation_details=evaluation.get("details", {}),
+        passed=evaluation["passed"],
+    )
 
     del user_sessions[session_key]
 
@@ -262,119 +258,6 @@ async def db_health_check(db: AsyncSession = Depends(get_db)):
         return {"status": "healthy", "db": "postgresql", "test": result.scalar() == 1}
     except Exception as e:
         return {"status": "unhealthy", "error": str(e)}
-
-
-@app.get("/admin/migrate")
-async def run_migrations():
-    """
-    ВРЕМЕННЫЙ ЭНДПОИНТ: Выполняет миграции Alembic.
-    Использовать только один раз для создания таблиц.
-    После успешного выполнения - УДАЛИТЬ этот эндпоинт!
-    """
-    import subprocess
-    import sys
-    import os
-    from fastapi.responses import JSONResponse
-
-    try:
-        # Запускаем миграцию
-        result = subprocess.run(
-            [sys.executable, "-m", "alembic", "upgrade", "head"],
-            capture_output=True,
-            text=True,
-            env=os.environ,
-            cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-        )
-
-        if result.returncode != 0:
-            return JSONResponse(
-                status_code=500, content={"status": "error", "message": result.stderr}
-            )
-
-        return JSONResponse(
-            content={
-                "status": "success",
-                "message": "Migrations completed successfully",
-                "output": result.stdout,
-            }
-        )
-    except Exception as e:
-        return JSONResponse(
-            status_code=500, content={"status": "error", "message": str(e)}
-        )
-
-
-@app.get("/admin/init-db")
-async def init_database():
-    """ВРЕМЕННО: Создаёт таблицы напрямую"""
-    import asyncpg
-    import os
-    from fastapi.responses import JSONResponse
-
-    try:
-        # Получаем URL базы данных
-        database_url = os.getenv("DATABASE_URL")
-        # Подключаемся напрямую через asyncpg
-        conn = await asyncpg.connect(database_url)
-
-        # Создаём таблицу users
-        await conn.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                id SERIAL PRIMARY KEY,
-                user_id VARCHAR(50) UNIQUE NOT NULL,
-                role_id VARCHAR(50) NOT NULL,
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-                updated_at TIMESTAMP WITH TIME ZONE
-            )
-        """)
-
-        # Создаём таблицу user_skills
-        await conn.execute("""
-            CREATE TABLE IF NOT EXISTS user_skills (
-                id SERIAL PRIMARY KEY,
-                user_id VARCHAR(50) NOT NULL,
-                competency_code VARCHAR(20) NOT NULL,
-                score FLOAT DEFAULT 0.0,
-                confidence FLOAT DEFAULT 0.0,
-                updated_at TIMESTAMP WITH TIME ZONE
-            )
-        """)
-
-        # Создаём таблицу diagnostic_results
-        await conn.execute("""
-            CREATE TABLE IF NOT EXISTS diagnostic_results (
-                id SERIAL PRIMARY KEY,
-                user_id VARCHAR(50) NOT NULL,
-                competency_code VARCHAR(20) NOT NULL,
-                score FLOAT NOT NULL,
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-            )
-        """)
-
-        # Создаём таблицу case_results
-        await conn.execute("""
-            CREATE TABLE IF NOT EXISTS case_results (
-                id SERIAL PRIMARY KEY,
-                user_id VARCHAR(50) NOT NULL,
-                case_id VARCHAR(50) NOT NULL,
-                competency_code VARCHAR(20) NOT NULL,
-                user_answer TEXT NOT NULL,
-                evaluation_score FLOAT NOT NULL,
-                evaluation_details JSONB,
-                passed INTEGER DEFAULT 0,
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-            )
-        """)
-
-        await conn.close()
-
-        return JSONResponse(
-            content={"status": "success", "message": "Tables created successfully"}
-        )
-    except Exception as e:
-        return JSONResponse(
-            status_code=500, content={"status": "error", "message": str(e)}
-        )
 
 
 if __name__ == "__main__":
