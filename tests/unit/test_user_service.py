@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.user_service import UserService
-from app.db.models import User, UserSkill, DiagnosticResult, CaseResult
+from app.db.models import User, UserSkill, CaseResult
 
 
 @pytest.mark.asyncio
