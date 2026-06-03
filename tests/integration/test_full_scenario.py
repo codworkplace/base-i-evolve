@@ -1,4 +1,3 @@
-import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 
@@ -77,7 +76,7 @@ def test_full_user_journey(client: TestClient, db_session):
     assert result.competency_code == first_comp["code"]
     print(f"✅ Результат кейса сохранён в БД, оценка: {result.evaluation_score}")
 
-    print(f"\n🎉 Полный сценарий пройден успешно!")
+    print("\n🎉 Полный сценарий пройден успешно!")
 
 
 def test_diagnostic_flow(client: TestClient):
