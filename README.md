@@ -22,7 +22,7 @@
 - **Frontend:** Streamlit
 - **База данных:** PostgreSQL (через SQLAlchemy + Alembic)
 - **Логирование:** structlog (JSON-формат в продакшене)
-- **Тестирование:** pytest, pytest-asyncio, интеграционные тесты
+- **Тестирование:** pytest, pytest-asyncio, интеграционные тесты, unit-тесты (с моками для LLM)
 - **LLM:** gpt-4o-mini (через API vsegpt.ru)
 - **Деплой:** Render.com (Docker)
 - **CI/CD:** GitHub Actions (lint, test, build)
@@ -58,6 +58,12 @@ ENVIRONMENT=development
 
 docker-compose up -d
 
+**Убедитесь, что контейнеры здоровы:**
+
+docker-compose ps
+
+**Ожидаемый результат: оба контейнера в статусе Up/healthy**
+
 ### 6. Примените миграции
 
 alembic upgrade head
@@ -79,35 +85,39 @@ streamlit run app/ui.py
 
 ### 🧪 Тестирование
 
-**Запуск всех тестов**
+**Все тесты (unit + интеграционные)**
 
 pytest tests/ -v
 
-**Запуск с покрытием**
+**Только unit-тесты (быстрые, не требуют БД)**
 
-pytest tests/ -v --cov=app
+pytest tests/unit/ -v
 
-**Только интеграционные тесты**
+**Только интеграционные тесты (требуют запущенный PostgreSQL)**
 
 pytest tests/integration/ -v
+
+**С покрытием кода**
+
+pytest tests/ -v --cov=app
 
 ### 📁 Структура проекта
 
 base-i-evolve/  
 ├── app/  
-│   ├── main.py           # FastAPI бэкенд  
-│   ├── ui.py             # Streamlit интерфейс  
-│   ├── core/             # Логирование и конфигурация  
-│   ├── db/               # Модели, миграции (Alembic)  
-│   ├── services/         # Бизнес-логика (UserService и др.)  
-│   ├── real/             # Реальные реализации (LLM, выбор кейсов)  
-│   └── stub/             # Заглушки для быстрого прототипирования  
-├── data/                 # JSON-файлы с ролями, компетенциями, кейсами  
-├── tests/                # Unit и интеграционные тесты  
-├── requirements.txt      # Зависимости Python  
-├── docker-compose.yml    # PostgreSQL + pgAdmin  
-├── Dockerfile            # Контейнеризация для деплоя  
-└── alembic/              # Миграции базы данных  
+│   ├── main.py               # FastAPI бэкенд  
+│   ├── ui.py                 # Streamlit интерфейс  
+│   ├── core/                 # Логирование и конфигурация  
+│   ├── db/                   # Модели, миграции (Alembic)  
+│   ├── services/             # Бизнес-логика (UserService и др.)  
+│   ├── real/                 # Реальные реализации (LLM, выбор кейсов)  
+│   └── stub/                 # Заглушки для быстрого прототипирования  
+├── data/                     # JSON-файлы с ролями, компетенциями, кейсами  
+├── tests/                    # Unit и интеграционные тесты  
+├── requirements.txt          # Зависимости Python  
+├── docker-compose.yml        # PostgreSQL + pgAdmin  
+├── Dockerfile                # Контейнеризация для деплоя  
+└── alembic/                  # Миграции базы данных  
 
 
 ### 🧠 Модель оценки
@@ -134,7 +144,7 @@ base-i-evolve/
 **При пуше в ветку main GitHub Actions:**
 
 1. Запускает линтеры (ruff, black)
-2. Запускает тесты с PostgreSQL
+2. Запускает тесты с PostgreSQL (с явным ожиданием готовности БД)
 3. Собирает Docker-образ
 
 **Render автоматически деплоит новую версию:**
@@ -142,6 +152,10 @@ base-i-evolve/
 1. Получает обновлённый код из ветки main
 2. Устанавливает зависимости
 3. Запускает приложение
+
+### ⚠️ Примечание для разработчиков на Windows
+
+asyncpg (асинхронный драйвер PostgreSQL) работает на Windows нестабильно. Рекомендуется использовать WSL2 или перейти на Linux для локальной разработки. На сервере (Render) используется Linux, поэтому проблем не возникает.
 
 ### 📝 Лицензия
 
