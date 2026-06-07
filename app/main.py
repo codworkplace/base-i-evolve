@@ -236,41 +236,6 @@ async def evaluate_case(
     del user_sessions[session_key]
     return evaluation
 
-
-
-@app.get("/admin/migrate")
-async def run_migrations():
-    import subprocess
-    import sys
-    import os
-    from fastapi.responses import JSONResponse
-
-    try:
-        result = subprocess.run(
-            [sys.executable, "-m", "alembic", "upgrade", "head"],
-            capture_output=True,
-            text=True,
-            env=os.environ,
-            cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        )
-        if result.returncode != 0:
-            return JSONResponse(
-                status_code=500,
-                content={"status": "error", "message": result.stderr}
-            )
-        return JSONResponse(
-            content={
-                "status": "success",
-                "message": "Migrations completed",
-                "output": result.stdout
-            }
-        )
-    except Exception as e:
-        return JSONResponse(
-            status_code=500,
-            content={"status": "error", "message": str(e)}
-        )
-
 # ---------- Запуск ----------
 if __name__ == "__main__":
     import uvicorn
