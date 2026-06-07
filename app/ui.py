@@ -3,8 +3,8 @@ import requests
 
 # ========== НАСТРОЙКА ==========
 # Для локальной разработки используйте localhost, для продакшена - адрес Render
-API_URL = "http://localhost:8000"          # локальный API
-# API_URL = "https://base-i-evolve-api.onrender.com"   # продакшен (раскомментировать при деплое)
+# API_URL = "http://localhost:8000"          # локальный API
+API_URL = "https://base-i-evolve-api.onrender.com"   # продакшен (раскомментировать при деплое)
 
 # ========== УПРАВЛЕНИЕ СЕССИЕЙ ==========
 if "access_token" not in st.session_state:
