@@ -236,6 +236,32 @@ async def evaluate_case(
     del user_sessions[session_key]
     return evaluation
 
+
+@app.get("/admin/fix-db")
+async def fix_database():
+    from sqlalchemy import text
+    from app.db.base import AsyncSessionLocal
+    from fastapi.responses import JSONResponse
+    import traceback
+
+    try:
+        async with AsyncSessionLocal() as db:
+            await db.execute(text("""
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(100) UNIQUE;
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS hashed_password VARCHAR(255);
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_role VARCHAR(20) DEFAULT 'user';
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
+            """))
+            await db.commit()
+        return JSONResponse(content={"status": "success", "message": "Missing columns added successfully"})
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "message": str(e), "traceback": traceback.format_exc()}
+        )
+
+
+
 # ---------- Запуск ----------
 if __name__ == "__main__":
     import uvicorn
