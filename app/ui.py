@@ -1,319 +1,136 @@
-# app/ui.py
-import os
 import streamlit as st
 import requests
 
-# Определяем API URL в зависимости от окружения
-if os.getenv("RENDER"):
-    API_URL = os.getenv("API_URL", "https://base-i-evolve-api.onrender.com")
-else:
-    API_URL = "http://localhost:8000"
+# ========== НАСТРОЙКА ==========
+# Для локальной разработки используйте localhost, для продакшена - адрес Render
+API_URL = "http://localhost:8000"          # локальный API
+# API_URL = "https://base-i-evolve-api.onrender.com"   # продакшен (раскомментировать при деплое)
 
-st.set_page_config(page_title="BS-Evolve", page_icon="🎯", layout="wide")
-st.title("🎯 BS-Evolve — Оценка и развитие компетенций")
+# ========== УПРАВЛЕНИЕ СЕССИЕЙ ==========
+if "access_token" not in st.session_state:
+    st.session_state.access_token = None
+if "user" not in st.session_state:
+    st.session_state.user = None
 
-# Инициализация сессии
-if "step" not in st.session_state:
-    st.session_state.step = 1
-    st.session_state.role = None
-    st.session_state.role_name = ""
-    st.session_state.competencies = []
-    st.session_state.diagnostic_scores = {}
-    st.session_state.completed_competencies = []
-    st.session_state.current_case = None
-    st.session_state.current_competency_index = 0
-    st.session_state.competencies_to_learn = []
-    st.session_state.show_evaluation = False
-    st.session_state.evaluation_result = None
-
-# ==================== ШАГ 1: ВЫБОР РОЛИ ====================
-if st.session_state.step == 1:
-    st.header("Шаг 1: Выберите роль")
-
-    try:
-        response = requests.get(f"{API_URL}/roles", timeout=10)
-        if response.status_code == 200:
-            roles = response.json()
-            role_names = [r.get("name", r["id"]) for r in roles]
-
-            selected_name = st.selectbox("Доступные роли", role_names)
-
-            if st.button("Выбрать роль"):
-                selected_role = next(
-                    r for r in roles if r.get("name", r["id"]) == selected_name
-                )
-                st.session_state.role = selected_role["id"]
-                st.session_state.role_name = selected_name
-
-                role_data = requests.get(
-                    f"{API_URL}/roles/{st.session_state.role}"
-                ).json()
-                st.session_state.competencies = role_data.get("competencies", [])
-                st.session_state.step = 2
-                st.rerun()
-        else:
-            st.error(f"Ошибка: {response.status_code}")
-    except Exception as e:
-        st.error(f"Ошибка подключения к API: {e}")
-        st.info(f"API URL: {API_URL}")
-
-# ==================== ШАГ 2: ДИАГНОСТИКА ====================
-elif st.session_state.step == 2:
-    st.header(f"Шаг 2: Диагностический срез для роли '{st.session_state.role_name}'")
-
-    st.info("Оцените свой уровень по каждой компетенции (0-100%)")
-
-    scores = {}
-    cols = st.columns(2)
-    for idx, comp in enumerate(st.session_state.competencies):
-        with cols[idx % 2]:
-            name = comp.get("name", comp["code"])
-            score = st.slider(
-                f"{comp['code']}: {name}", 0, 100, 50, key=f"diag_{comp['code']}"
-            )
-            scores[comp["code"]] = score
-
-    if st.button("Завершить диагностику и начать обучение"):
-        st.session_state.diagnostic_scores = scores
-
-        st.session_state.competencies_to_learn = [
-            comp
-            for comp in st.session_state.competencies
-            if scores.get(comp["code"], 50) < 70
-        ]
-
-        if not st.session_state.competencies_to_learn:
-            st.session_state.step = 4
-        else:
-            st.session_state.step = 3
-            st.session_state.completed_competencies = []
-            st.session_state.current_competency_index = 0
-            st.session_state.current_case = None
-
-        st.rerun()
-
-# ==================== ШАГ 3: КЕЙСЫ ====================
-elif st.session_state.step == 3:
-    st.header("Шаг 3: Практические кейсы")
-
-    if st.session_state.get("show_evaluation", False) and st.session_state.get(
-        "evaluation_result"
-    ):
-        eval_result = st.session_state.evaluation_result
-        st.subheader("📊 Результат оценки")
-
-        score = eval_result.get("total_score", 0)
-        st.metric("Балл", f"{score}%")
-
-        if eval_result.get("passed", False):
-            st.success("✅ Компетенция зачтена!")
-        else:
-            st.warning("⚠️ Компетенция не зачтена. Попробуйте другой кейс.")
-
-        with st.expander("Подробности оценки"):
-            st.write(f"**Feedback:** {eval_result.get('feedback', '')}")
-            st.write("**Оценка по критериям:**")
-            for result in eval_result.get("results", []):
-                verdict_icon = "✅" if result["verdict"] == "да" else "❌"
-                st.write(f"{verdict_icon} **{result['criterion']}**")
-                st.caption(f"Evidence: {result.get('evidence', 'Нет пояснения')}")
-
-        if st.button("Продолжить"):
-            if eval_result.get("passed", False):
-                current_comp = st.session_state.competencies_to_learn[
-                    st.session_state.current_competency_index
-                ]
-                st.session_state.completed_competencies.append(current_comp["code"])
-                st.session_state.current_competency_index += 1
-            st.session_state.current_case = None
-            st.session_state.show_evaluation = False
-            st.session_state.evaluation_result = None
-            st.rerun()
-    else:
-        total = len(st.session_state.competencies_to_learn)
-        completed = len(st.session_state.completed_competencies)
-
-        if total > 0:
-            progress = completed / total
-            st.progress(progress)
-            st.write(f"**Прогресс:** {completed} из {total} компетенций освоено")
-
-        if total > 0 and completed >= total:
-            st.success("🎉 Поздравляем! Вы успешно освоили все компетенции!")
-            if st.button("Показать финальный отчет"):
-                st.session_state.step = 4
-                st.rerun()
-        elif total == 0:
-            st.info("Все компетенции уже на высоком уровне!")
-            if st.button("Перейти к отчету"):
-                st.session_state.step = 4
-                st.rerun()
-        elif st.session_state.current_competency_index < len(
-            st.session_state.competencies_to_learn
-        ):
-            current_comp = st.session_state.competencies_to_learn[
-                st.session_state.current_competency_index
-            ]
-            comp_code = current_comp["code"]
-            comp_name = current_comp.get("name", comp_code)
-
-            st.subheader(f"Текущая компетенция: {comp_code} - {comp_name}")
-            st.write(
-                f"**Ваш текущий уровень:** {st.session_state.diagnostic_scores.get(comp_code, 50)}%"
-            )
-            st.write("**Целевой уровень:** 70% и выше")
-
-            if st.session_state.current_case is None:
-                with st.spinner("Загружаем кейс..."):
-                    try:
-                        response = requests.post(
-                            f"{API_URL}/cases/select",
-                            json={
-                                "user_id": st.session_state.get("user_id", "test_user"),
-                                "competency_id": comp_code,
-                                "user_level": st.session_state.diagnostic_scores.get(
-                                    comp_code, 50
-                                )
-                                / 100,
-                            },
-                            timeout=30,
-                        )
-                        if response.status_code == 200:
-                            st.session_state.current_case = response.json()
-                        else:
-                            st.error("Не удалось загрузить кейс")
-                    except Exception as e:
-                        st.error(f"Ошибка: {e}")
-
-            case = st.session_state.current_case
-            if case and "error" not in case:
-                st.info(f"**{case.get('title', 'Практический кейс')}**")
-                st.write(case.get("scenario", ""))
-
-                with st.expander("📋 Критерии оценки (чек-лист)"):
-                    for item in case.get("checklist", []):
-                        st.write(f"- {item}")
-
-                answer = st.text_area(
-                    "**Ваш ответ:**", height=200, key=f"answer_{comp_code}"
-                )
-
-                col1, col2 = st.columns(2)
-                with col1:
-                    if st.button("📤 Отправить на оценку", key=f"submit_{comp_code}"):
-                        if not answer.strip():
-                            st.warning("Пожалуйста, введите ответ перед отправкой")
-                        else:
-                            with st.spinner("ИИ оценивает ваш ответ..."):
-                                try:
-                                    eval_response = requests.post(
-                                        f"{API_URL}/cases/evaluate",
-                                        json={
-                                            "user_id": st.session_state.get(
-                                                "user_id", "test_user"
-                                            ),
-                                            "competency_id": comp_code,
-                                            "answer": answer,
-                                        },
-                                        timeout=60,
-                                    )
-
-                                    if eval_response.status_code == 200:
-                                        evaluation = eval_response.json()
-                                        st.session_state.evaluation_result = evaluation
-                                        st.session_state.show_evaluation = True
-                                        st.rerun()
-                                    else:
-                                        st.error(f"Ошибка: {eval_response.status_code}")
-                                except Exception as e:
-                                    st.error(f"Ошибка: {e}")
-
-                with col2:
-                    if st.button("🔄 Другой кейс", key=f"next_{comp_code}"):
-                        st.session_state.current_case = None
-                        st.rerun()
-            else:
-                st.error("Нет доступных кейсов для этой компетенции")
-                if st.button("Пропустить эту компетенцию"):
-                    st.session_state.completed_competencies.append(comp_code)
-                    st.session_state.current_competency_index += 1
-                    st.session_state.current_case = None
+# ========== СТРАНИЦА ЛОГИНА ==========
+if not st.session_state.access_token:
+    st.title("Авторизация")
+    with st.form("login_form"):
+        email = st.text_input("Email")
+        password = st.text_input("Password", type="password")
+        submitted = st.form_submit_button("Войти")
+        if submitted:
+            resp = requests.post(f"{API_URL}/auth/login", json={"email": email, "password": password})
+            if resp.status_code == 200:
+                data = resp.json()
+                st.session_state.access_token = data["access_token"]
+                # Получение данных пользователя
+                me = requests.get(f"{API_URL}/users/me", headers={"Authorization": f"Bearer {data['access_token']}"})
+                if me.status_code == 200:
+                    st.session_state.user = me.json()
                     st.rerun()
-
-# ==================== ШАГ 4: ФИНАЛЬНЫЙ ОТЧЕТ ====================
-elif st.session_state.step == 4:
-    st.header("🎉 Результаты обучения")
-    st.success("Вы успешно завершили программу развития!")
-
-    if st.session_state.diagnostic_scores:
-        avg_score = sum(st.session_state.diagnostic_scores.values()) / len(
-            st.session_state.diagnostic_scores
-        )
-
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Итоговый PI", f"{avg_score:.1f}%")
-        with col2:
-            passed_comp = len(st.session_state.completed_competencies)
-            total_comp = (
-                len(st.session_state.competencies_to_learn)
-                if st.session_state.competencies_to_learn
-                else len(st.session_state.competencies)
-            )
-            st.metric("Освоено компетенций", f"{passed_comp}/{total_comp}")
-        with col3:
-            if avg_score >= 70:
-                st.metric("Статус", "✅ Сдано")
+                else:
+                    st.error("Не удалось получить данные пользователя. Проверьте токен.")
+                    st.session_state.access_token = None
             else:
-                st.metric("Статус", "⚠️ На доработку")
+                st.error(f"Ошибка входа: {resp.status_code} - {resp.text}")
+    st.stop()
 
-    st.subheader("Детализация по компетенциям")
+# ========== БОКОВАЯ ПАНЕЛЬ (ОБЩАЯ) ==========
+st.sidebar.write(f"👤 Добро пожаловать, {st.session_state.user.get('email')}")
+if st.sidebar.button("🚪 Выйти"):
+    st.session_state.access_token = None
+    st.session_state.user = None
+    st.rerun()
 
-    data = []
-    for comp in st.session_state.competencies:
-        comp_code = comp["code"]
-        score = st.session_state.diagnostic_scores.get(comp_code, 0)
-        is_completed = comp_code in st.session_state.completed_competencies
+# ========== ОСНОВНОЙ КОНТЕНТ ДЛЯ ПОЛЬЗОВАТЕЛЕЙ ==========
+st.header("Основной функционал")
+st.write("Здесь будет интерфейс для выбора роли, диагностики и кейсов.")
+# TODO: Перенести сюда существующий код (выбор роли, кейсы, оценка)
 
-        if score >= 70:
-            status = "✅ Высокий уровень"
-        elif is_completed:
-            status = "✅ Освоено"
+# ========== АДМИН-ПАНЕЛЬ (ТОЛЬКО ДЛЯ ADMIN) ==========
+if st.session_state.user and st.session_state.user.get("auth_role") == "admin":
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("🔐 Администрирование")
+    admin_page = st.sidebar.radio("Управление", ["Пользователи", "Кейсы", "Компетенции"])
+
+    headers = {"Authorization": f"Bearer {st.session_state.access_token}"}
+
+    # ----- Управление пользователями -----
+    if admin_page == "Пользователи":
+        st.header("👥 Пользователи")
+        resp = requests.get(f"{API_URL}/admin/users", headers=headers)
+        if resp.status_code == 200:
+            users = resp.json()
+            for u in users:
+                cols = st.columns([3, 2, 2, 1])
+                cols[0].write(u["email"])
+                cols[1].write(u["auth_role"])
+                cols[2].write(u["role_id"])
+                if cols[3].button("Изменить роль", key=f"role_{u['id']}"):
+                    new_role = st.selectbox("Новая роль", ["user", "manager", "admin"], key=f"select_{u['id']}")
+                    if st.button("Сохранить", key=f"save_{u['id']}"):
+                        put_resp = requests.put(
+                            f"{API_URL}/admin/users/{u['id']}/role",
+                            json={"role": new_role},
+                            headers=headers
+                        )
+                        if put_resp.status_code == 200:
+                            st.success("Роль обновлена")
+                            st.rerun()
+                        else:
+                            st.error("Ошибка обновления")
         else:
-            status = "🟡 Требуется практика"
+            st.error("Не удалось загрузить пользователей")
 
-        data.append(
-            {
-                "Компетенция": comp_code,
-                "Название": comp.get("name", ""),
-                "Балл": f"{score}%",
-                "Статус": status,
-            }
-        )
+    # ----- Управление кейсами -----
+    elif admin_page == "Кейсы":
+        st.header("📚 Управление кейсами")
+        resp = requests.get(f"{API_URL}/admin/cases", headers=headers)
+        if resp.status_code == 200:
+            cases = resp.json()
+            for comp_id, case_list in cases.items():
+                st.subheader(f"Компетенция {comp_id}")
+                for case in case_list:
+                    with st.expander(f"{case['title']} (сложность: {case['difficulty']})"):
+                        st.write("**Сценарий:**", case["scenario"])
+                        st.write("**Чек-лист:**", case["checklist"])
+                        if st.button("🗑️ Удалить", key=f"del_{case['id']}"):
+                            # Здесь можно вызвать DELETE запрос, если он реализован в API
+                            st.warning("Удаление кейсов через UI пока не реализовано.")
+            # Форма добавления нового кейса
+            with st.form("new_case"):
+                st.subheader("➕ Добавить новый кейс")
+                new_comp_id = st.text_input("Компетенция (например, SLS-04)")
+                new_title = st.text_input("Название")
+                new_difficulty = st.selectbox("Сложность", ["easy", "medium", "hard"])
+                new_scenario = st.text_area("Сценарий")
+                new_checklist = st.text_area("Чек-лист (каждый пункт с новой строки)")
+                if st.form_submit_button("Создать"):
+                    if not new_comp_id or not new_title or not new_scenario:
+                        st.error("Заполните все обязательные поля (компетенция, название, сценарий).")
+                    else:
+                        checklist_items = [item.strip() for item in new_checklist.split("\n") if item.strip()]
+                        payload = {
+                            "competency_id": new_comp_id,
+                            "title": new_title,
+                            "difficulty": new_difficulty,
+                            "scenario": new_scenario,
+                            "checklist": checklist_items
+                        }
+                        post_resp = requests.post(f"{API_URL}/admin/cases", json=payload, headers=headers)
+                        if post_resp.status_code == 200:
+                            st.success("Кейс добавлен")
+                            st.rerun()
+                        else:
+                            st.error(f"Ошибка добавления: {post_resp.text}")
+        else:
+            st.error("Не удалось загрузить кейсы")
 
-    st.table(data)
+    # ----- Управление компетенциями -----
+    elif admin_page == "Компетенции":
+        st.header("📋 Управление компетенциями")
+        st.info("Функция управления компетенциями будет добавлена позже.")
 
-    if st.button("Начать заново"):
-        for key in list(st.session_state.keys()):
-            del st.session_state[key]
-        st.rerun()
-
-# ==================== БОКОВАЯ ПАНЕЛЬ ====================
-with st.sidebar:
-    st.header("📊 Информация")
-
-    if st.session_state.step == 3 and st.session_state.competencies_to_learn:
-        current = st.session_state.current_competency_index + 1
-        total = len(st.session_state.competencies_to_learn)
-        if total > 0 and current <= total:
-            st.write(f"**Текущий кейс:** {current}/{total}")
-
-    if st.session_state.diagnostic_scores:
-        st.write("**Ваши баллы:**")
-        for code, score in list(st.session_state.diagnostic_scores.items())[:5]:
-            st.write(f"- {code}: {score}%")
-
-    if st.button("🔄 Сбросить прогресс"):
-        for key in list(st.session_state.keys()):
-            del st.session_state[key]
-        st.rerun()
+# ========== ПРИМЕЧАНИЕ ==========
+# Если вы хотите использовать продакшен-API, измените API_URL выше на Render-адрес.
