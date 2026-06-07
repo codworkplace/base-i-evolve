@@ -1,6 +1,5 @@
 import streamlit as st
 import requests
-import json
 
 # ========== НАСТРОЙКА ==========
 # Для локальной разработки используйте localhost, для продакшена - адрес Render
