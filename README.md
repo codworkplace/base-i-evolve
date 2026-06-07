@@ -107,19 +107,19 @@ pytest tests/ -v --cov=app
 
 base-i-evolve/  
 ├── app/  
-│   ├── main.py           # FastAPI бэкенд  
-│   ├── ui.py             # Streamlit интерфейс  
-│   ├── core/             # Логирование и конфигурация  
-│   ├── db/               # Модели, миграции (Alembic)  
-│   ├── services/         # Бизнес-логика (UserService и др.)  
-│   ├── real/             # Реальные реализации (LLM, выбор кейсов)  
-│   └── stub/             # Заглушки для быстрого прототипирования  
-├── data/                 # JSON-файлы с ролями, компетенциями, кейсами  
-├── tests/                # Unit и интеграционные тесты  
-├── requirements.txt      # Зависимости Python  
-├── docker-compose.yml    # PostgreSQL + pgAdmin  
-├── Dockerfile            # Контейнеризация для деплоя  
-└── alembic/              # Миграции базы данных  
+│   ├── main.py               # FastAPI бэкенд  
+│   ├── ui.py                 # Streamlit интерфейс  
+│   ├── core/                 # Логирование и конфигурация  
+│   ├── db/                   # Модели, миграции (Alembic)  
+│   ├── services/             # Бизнес-логика (UserService и др.)  
+│   ├── real/                 # Реальные реализации (LLM, выбор кейсов)  
+│   └── stub/                 # Заглушки для быстрого прототипирования  
+├── data/                     # JSON-файлы с ролями, компетенциями, кейсами  
+├── tests/                    # Unit и интеграционные тесты  
+├── requirements.txt          # Зависимости Python  
+├── docker-compose.yml        # PostgreSQL + pgAdmin  
+├── Dockerfile                # Контейнеризация для деплоя  
+└── alembic/                  # Миграции базы данных  
 
 
 ### 🧠 Модель оценки
