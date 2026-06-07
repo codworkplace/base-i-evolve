@@ -221,7 +221,6 @@ async def evaluate_case(
     evaluation["competency_id"] = competency_id
     evaluation["passed"] = evaluation.get("total_score", 0) >= 70
 
-    # Сохраняем в БД
     user_service = UserService(db)
     await user_service.get_or_create_user(user_id, role_id)
     await user_service.save_case_result(
@@ -238,55 +237,6 @@ async def evaluate_case(
     return evaluation
 
 # ---------- Запуск ----------
-@app.get("/health/llm")
-async def check_llm_health():
-    """Проверка подключения к LLM"""
-    try:
-        evaluator = get_llm_evaluator()
-
-        if not hasattr(evaluator, "client") or evaluator.client is None:
-            return {"status": "unhealthy", "error": "LLM not initialized (no API key?)"}
-
-        test_result = await evaluator.evaluate_case(
-            scenario="Тестовый кейс",
-            user_answer="Тестовый ответ",
-            checklist=["Тестовый пункт"],
-        )
-
-        return {
-            "status": "healthy",
-            "model": getattr(evaluator, "model", "unknown"),
-            "base_url": str(evaluator.client.base_url) if evaluator.client else "N/A",
-            "test_score": test_result.get("total_score", 0),
-        }
-    except Exception as e:
-        return {"status": "unhealthy", "error": str(e)}
-
-
-@app.get("/docs", include_in_schema=False)
-async def custom_swagger_ui():
-    return get_swagger_ui_html(
-        openapi_url="/openapi.json", title="BS-Evolve API - Swagger UI"
-    )
-
-
-@app.get("/redoc", include_in_schema=False)
-async def custom_redoc():
-    return get_redoc_html(openapi_url="/openapi.json", title="BS-Evolve API - ReDoc")
-
-
-@app.get("/db/health")
-async def db_health_check(db: AsyncSession = Depends(get_db)):
-    """Проверка подключения к PostgreSQL (новый функционал)"""
-    try:
-        from sqlalchemy import text
-
-        result = await db.execute(text("SELECT 1"))
-        return {"status": "healthy", "db": "postgresql", "test": result.scalar() == 1}
-    except Exception as e:
-        return {"status": "unhealthy", "error": str(e)}
-
-
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
