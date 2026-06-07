@@ -237,6 +237,7 @@ async def evaluate_case(
     return evaluation
 
 
+
 @app.get("/admin/fix-db")
 async def fix_database():
     from sqlalchemy import text
@@ -246,14 +247,13 @@ async def fix_database():
 
     try:
         async with AsyncSessionLocal() as db:
-            await db.execute(text("""
-                ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(100) UNIQUE;
-                ALTER TABLE users ADD COLUMN IF NOT EXISTS hashed_password VARCHAR(255);
-                ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_role VARCHAR(20) DEFAULT 'user';
-                ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
-            """))
+            # Каждая команда выполняется отдельно
+            await db.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(100) UNIQUE"))
+            await db.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS hashed_password VARCHAR(255)"))
+            await db.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_role VARCHAR(20) DEFAULT 'user'"))
+            await db.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE"))
             await db.commit()
-        return JSONResponse(content={"status": "success", "message": "Missing columns added successfully"})
+            return JSONResponse(content={"status": "success", "message": "Missing columns added successfully"})
     except Exception as e:
         return JSONResponse(
             status_code=500,
