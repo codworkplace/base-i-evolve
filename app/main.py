@@ -11,11 +11,9 @@ from app.real.case_selector import CaseSelector
 from app.db.base import get_db
 from app.services.user_service import UserService
 from app.core.logging import setup_logging
-from app.routers import auth
+from app.routers import auth, users, admin
 from app.dependencies.auth import get_current_user
 from app.db.models.user import User
-from app.routers import users
-from app.routers import admin
 
 # Настройка логирования
 environment = os.getenv("ENVIRONMENT", "development")
@@ -28,13 +26,9 @@ app = FastAPI(
     openapi_url="/openapi.json",
 )
 
-# Подключаем роутер аутентификации (регистрация, логин)
+# Подключаем роутеры
 app.include_router(auth.router)
-
-# Подключаем роутер пользователей
 app.include_router(users.router)
-
-# Подключаем роутер админа
 app.include_router(admin.router)
 
 # Ленивая инициализация LLM
@@ -221,6 +215,7 @@ async def evaluate_case(
     evaluation["competency_id"] = competency_id
     evaluation["passed"] = evaluation.get("total_score", 0) >= 70
 
+    # Сохраняем в БД
     user_service = UserService(db)
     await user_service.get_or_create_user(user_id, role_id)
     await user_service.save_case_result(
@@ -236,7 +231,6 @@ async def evaluate_case(
     del user_sessions[session_key]
     return evaluation
 
-# ---------- Запуск ----------
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
