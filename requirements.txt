@@ -102,7 +102,3 @@ uvicorn==0.46.0
 virtualenv==21.3.3
 watchdog==6.0.0
 websockets==16.0
-bcrypt==5.0.0
-passlib==1.7.4
-python-jose==3.5.0
-python-multipart==0.0.27
